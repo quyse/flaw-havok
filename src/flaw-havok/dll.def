@@ -1,0 +1,3 @@
+LIBRARY flaw-havok
+EXPORTS
+	havok
