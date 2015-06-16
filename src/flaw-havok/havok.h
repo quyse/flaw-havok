@@ -86,18 +86,25 @@ public:
 
 	/// Run VDB.
 	/** Should be called after getPhysics(), etc. */
-	virtual void __stdcall runVisualDebugger()
+	virtual void __stdcall createVDB()
 	{
-		vdb = new hkVisualDebugger(contexts);
-		vdb->serve();
+		if(!vdb)
+		{
+			vdb = new hkVisualDebugger(contexts);
+			vdb->serve();
+		}
 	}
 
-	virtual void __stdcall stepVisualDebugger(float time)
+	virtual void __stdcall destroyVDB()
 	{
 		if(vdb)
-		{
+			vdb->removeReference();
+	}
+
+	virtual void __stdcall stepVDB(float time)
+	{
+		if(vdb)
 			vdb->step(time * 1000.0f);
-		}
 	}
 
 	virtual HavokPhysics*  __stdcall getPhysics()

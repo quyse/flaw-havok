@@ -10,16 +10,19 @@ module Flaw.Havok
 	( Havok(..)
 	, havokRun
 	, havokForkOS
-	, havokRunVisualDebugger
+	, havokCreateVDB
+	, havokStepVDB
 	) where
 
 import Control.Concurrent
 import Control.Monad
+import Control.Monad.IO.Class
 import Foreign.Ptr
 
 import Flaw.FFI.COM
 import Flaw.FFI.Win32
 import qualified Flaw.Havok.FFI as FFI
+import Flaw.Resource
 
 newtype Havok = Havok FFI.Havok
 
@@ -46,7 +49,10 @@ havokForkOS (Havok oHavok) p = do
 		FFI.m_Havok_quitThread oHavok
 	return ()
 
-havokRunVisualDebugger :: Havok -> IO ()
-havokRunVisualDebugger havok@(Havok oHavok) = havokForkOS havok $ do
-	FFI.m_Havok_runVisualDebugger oHavok
-	forever $ FFI.m_Havok_stepVisualDebugger oHavok 0.1
+havokCreateVDB :: ResourceIO m => Havok -> m ReleaseKey
+havokCreateVDB (Havok oHavok) = do
+	liftIO $ FFI.m_Havok_createVDB oHavok
+	registerRelease $ FFI.m_Havok_destroyVDB oHavok
+
+havokStepVDB :: Havok -> Float -> IO ()
+havokStepVDB (Havok oHavok) time = FFI.m_Havok_stepVDB oHavok time
