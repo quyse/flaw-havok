@@ -8,7 +8,8 @@ License: MIT
 
 module Flaw.Havok
 	( Havok(..)
-	, havokInit
+	, havokRun
+	, havokForkOS
 	, havokRunVisualDebugger
 	) where
 
@@ -19,26 +20,33 @@ import Foreign.Ptr
 import Flaw.FFI.COM
 import Flaw.FFI.Win32
 import qualified Flaw.Havok.FFI as FFI
-import Flaw.Resource
 
 newtype Havok = Havok FFI.Havok
 
-havokInit :: ResourceIO m => m (ReleaseKey, Havok)
-havokInit = allocate create destroy where
-	create = do
-		havokFunc <- liftM mkHavok $ loadLibraryAndGetProcAddress "flaw-havok.dll" "havok"
-		oHavok <- peekCOMObject =<< havokFunc
-		ok <- FFI.m_Havok_init oHavok
-		if ok then return $ Havok oHavok
-		else fail "failed to initialize Havok"
-	destroy (Havok oHavok) = FFI.m_Havok_quit oHavok
+havokRun :: (Havok -> IO a) -> IO a
+havokRun p = do
+	havokFunc <- liftM mkHavok $ loadLibraryAndGetProcAddress "flaw-havok.dll" "havok"
+	oHavok <- peekCOMObject =<< havokFunc
+	ok <- FFI.m_Havok_init oHavok
+	if ok then return ()
+	else fail "failed to initialize Havok"
+	r <- p $ Havok oHavok
+	FFI.m_Havok_quit oHavok
+	return r
 
 type HavokProc = IO (Ptr FFI.Havok)
 
 foreign import stdcall safe "dynamic" mkHavok :: FunPtr HavokProc -> HavokProc
 
-havokRunVisualDebugger :: Havok -> IO ()
-havokRunVisualDebugger (Havok oHavok) = do
-	FFI.m_Havok_runVisualDebugger oHavok
-	_ <- forkIO $ forever $ FFI.m_Havok_stepVisualDebugger oHavok 0.1
+havokForkOS :: Havok -> IO () -> IO ()
+havokForkOS (Havok oHavok) p = do
+	_ <- forkOS $ do
+		FFI.m_Havok_initThread oHavok
+		p
+		FFI.m_Havok_quitThread oHavok
 	return ()
+
+havokRunVisualDebugger :: Havok -> IO ()
+havokRunVisualDebugger havok@(Havok oHavok) = havokForkOS havok $ do
+	FFI.m_Havok_runVisualDebugger oHavok
+	forever $ FFI.m_Havok_stepVisualDebugger oHavok 0.1

@@ -1,10 +1,8 @@
 #include "Havok.h"
 
-Havok globalHavok;
-
 Havok* havok()
 {
-	return &globalHavok;
+	return new Havok();
 }
 
 BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD reason, VOID* reserved)

@@ -56,6 +56,10 @@ public:
 
 	virtual void __stdcall quit()
 	{
+		// deallocate itself first, as we use Havok memory system
+		delete this;
+
+		// shutdown
 		hkBaseSystem::quit();
 #ifdef _DEBUG
 		hkMemoryInitUtil::quitMemoryTracker();
@@ -66,12 +70,18 @@ public:
 
 	virtual void __stdcall initThread()
 	{
-		hkBaseSystem::initThread(new hkMemoryRouter());
+		static hkMemoryRouter routers[16];
+		static int routerIndex = 0;
+		hkMemoryRouter& router = routers[routerIndex++];
+		hkMemorySystem::getInstance().threadInit(router, "flawThread");
+		hkBaseSystem::initThread(&router);
 	}
 
 	virtual void __stdcall quitThread()
 	{
+		hkMemoryRouter& router = hkMemoryRouter::getInstance();
 		hkBaseSystem::quitThread();
+		hkMemorySystem::getInstance().threadQuit(router);
 	}
 
 	/// Run VDB.
